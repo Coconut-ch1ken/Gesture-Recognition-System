@@ -2,6 +2,7 @@ import cv2
 import mediapipe as mp
 import pyautogui
 import time
+import platform
 
 # Initialize MediaPipe's Hand module
 mp_hands = mp.solutions.hands
@@ -18,7 +19,10 @@ def perform_action(gesture):
 
     if time.time() - lastTime >= action_interval:
         if gesture == "Thumb_Up":
-            pyautogui.press(['ctrl', 's'])
+            if platform.system() == 'Darwin':
+                pyautogui.hotkey('command', 's')
+            else:
+                pyautogui.hotkey('ctrl', 's')
 
         elif gesture == "Thumb_Down":
             pyautogui.press('backspace')

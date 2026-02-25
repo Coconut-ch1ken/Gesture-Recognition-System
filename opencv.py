@@ -54,7 +54,7 @@ cv2.destroyAllWindows()
 # mp_drawing.DrawingSpec??
 
 
-os.mkdir('Output Images')
+os.makedirs('Output Images', exist_ok=True)
 cap = cv2.VideoCapture(0)
 
 with mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.5) as hands: 

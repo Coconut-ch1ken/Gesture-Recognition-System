@@ -87,4 +87,4 @@ with mp.tasks.vision.GestureRecognizer.create_from_options(
 
 
 cap.release()
-cv2.destroyAllWindows
+cv2.destroyAllWindows()
