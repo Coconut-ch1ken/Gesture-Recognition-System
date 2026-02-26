@@ -53,9 +53,8 @@ st.write("tracking confidence level is ",tracking_confidence_level)
 cooldown = st.slider("cooldown time",0.1,10.0,0.5)
 st.write("cooldown time is ",cooldown)
 
-# Initialize Mediapipe drawing utilities
-mp_drawing = mp.solutions.drawing_utils
-mp_hands = mp.solutions.hands
+# Initialize Mediapipe drawing utilities (new mp.tasks API)
+mp_drawing = mp.tasks.vision.drawing_utils
 
 frameTimeStamp = 0
 
@@ -70,10 +69,20 @@ toggle = False
 # Create an empty Streamlit frame
 stframe = st.empty()
 
+# Store latest hand landmarks from the gesture recognition callback
+latest_hand_landmarks = None
+
 # Define a callback function for gesture recognition results
 def result(result, image, ms):
     global lastTime
     global lastTimeBack
+    global latest_hand_landmarks
+    
+    # Store hand landmarks for cursor control in the main loop
+    if result.hand_landmarks:
+        latest_hand_landmarks = result.hand_landmarks
+    else:
+        latest_hand_landmarks = None
     
     # Loop through detected gestures
     for gestures in result.gestures:
@@ -89,52 +98,44 @@ def result(result, image, ms):
                     print("up")
                 lastTime = time.time()
 
-# Create a gesture recognizer using Mediapipe
-# with mp_hands.Hands(min_detection_confidence = 0.8, min_tracking_confidence = 0.5, max_num_hands = 1) as hands:
-hands = mp_hands.Hands(min_detection_confidence = 0.8, min_tracking_confidence = 0.5, max_num_hands = 1)
-
-
-
-
-with mp.tasks.vision.GestureRecognizer.create_from_options(
+# Create a gesture recognizer using Mediapipe (no separate Hands() needed;
+# GestureRecognizer already provides hand_landmarks in its result)
+recog = mp.tasks.vision.GestureRecognizer.create_from_options(
     mp.tasks.vision.GestureRecognizerOptions(
         base_options=mp.tasks.BaseOptions(model_asset_path="gestures_recognizer.task"),
         running_mode=mp.tasks.vision.RunningMode.LIVE_STREAM,
-        min_hand_detection_confidence=1,
-        min_tracking_confidence=1,
+        min_hand_detection_confidence=detection_confidence_level,
+        min_tracking_confidence=tracking_confidence_level,
         result_callback=result
     )
-) as recog:
-    while cap.isOpened():
-        ret,frame = cap.read()
-        image = mp.Image(image_format=mp.ImageFormat.SRGB, data = frame)
-        image.flags.writeable = False
-        results = hands.process(image)
-        image.flags.writeable = True
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+)
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+    image = cv2.flip(frame, 1)
 
-        multi = 1
-        threshold = 0.015
+    multi = 1
 
+    # Use hand landmarks from the gesture callback for cursor control
+    if latest_hand_landmarks and toggle:
+        landmark_8 = latest_hand_landmarks[0][8]
+        pyautogui.moveTo(
+            landmark_8.x * pyautogui.size().width * multi,
+            landmark_8.y * pyautogui.size().height * multi
+        )
 
-        if results.multi_hand_landmarks and toggle:
-            pyautogui.moveTo(results.multi_hand_landmarks[0].landmark[8].x * pyautogui.size().width * multi, results.multi_hand_landmarks[0].landmark[8].y * pyautogui.size().height * multi)
+    # Convert to mediapipe image and run async gesture recognition
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
+    frameTimeStamp += 1
+    recog.recognize_async(mp_image, frameTimeStamp)
 
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data = image)
+    stframe.image(image, channels="BGR", use_column_width=True)
+    
 
-
-
-
-        frameTimeStamp += 1
-
-        recog.recognize_async(mp_image, frameTimeStamp)
-
-        stframe.image(image, channels="BGR", use_column_width=True)
-        
-
-        if cv2.waitKey(10) & 0xFF == ord('q'):
-            break
+    if cv2.waitKey(10) & 0xFF == ord('q'):
+        break
 
 # Release the video capture and close all OpenCV windows
 cap.release()

@@ -37,8 +37,8 @@ confidence_level = st.slider("confidence level",0.0,1.0,0.5)
 st.write("confidence level is ",confidence_level)
 
 
-mp_drawing = mp.solutions.drawing_utils
-mp_hands = mp.solutions.hands
+mp_drawing = mp.tasks.vision.drawing_utils
+mp_hands_connections = mp.tasks.vision.HandLandmarksConnections
 
 frameTimeStamp = 0
 

@@ -4,10 +4,19 @@ import pyautogui
 import time
 import platform
 
-# Initialize MediaPipe's Hand module
-mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-mp_drawing = mp.solutions.drawing_utils
+# Initialize MediaPipe's Hand module (new mp.tasks API)
+mp_drawing = mp.tasks.vision.drawing_utils
+mp_hands_connections = mp.tasks.vision.HandLandmarksConnections
+
+# Create a HandLandmarker for hand detection
+hand_landmarker = mp.tasks.vision.HandLandmarker.create_from_options(
+    mp.tasks.vision.HandLandmarkerOptions(
+        base_options=mp.tasks.BaseOptions(model_asset_path="gestures_recognizer.task"),
+        running_mode=mp.tasks.vision.RunningMode.IMAGE,
+        min_hand_detection_confidence=0.5,
+        min_tracking_confidence=0.5
+    )
+)
 
 # Initialize variables for gesture action timing
 lastTime = 0
@@ -47,27 +56,22 @@ while cap.isOpened():
     if not ret:
         break
 
-    # Convert the frame to RGB
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # Convert the frame to a mediapipe image
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
     # Process the frame and detect hands
-    results = hands.process(frame_rgb)
+    results = hand_landmarker.detect(mp_image)
 
     # If hands are detected, draw landmarks and perform actions based on gestures
-    if results.multi_hand_landmarks:
-        for hand_landmarks in results.multi_hand_landmarks:
+    if results.hand_landmarks:
+        for hand_landmarks in results.hand_landmarks:
             # Draw hand landmarks
-            mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+            mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands_connections.HAND_CONNECTIONS)
             
-            # Placeholder: Add your own logic to recognize gestures based on landmarks
-            # Here we'll just print the landmarks for simplicity
-            # print(hand_landmarks)
-
-            # Example logic to recognize gestures (this is very simplistic)
-            # Add your own complex gesture recognition logic here
-            thumb_tip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP]
-            index_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
-            middle_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
+            # Get landmark positions
+            thumb_tip = hand_landmarks[mp.tasks.vision.HandLandmarker.HandLandmarkIndex.THUMB_TIP] if hasattr(mp.tasks.vision, 'HandLandmarkIndex') else hand_landmarks[4]
+            index_finger_tip = hand_landmarks[8]
+            middle_finger_tip = hand_landmarks[12]
 
             # Simple logic to recognize some gestures (for demonstration purposes)
             if thumb_tip.y < index_finger_tip.y and thumb_tip.y < middle_finger_tip.y:

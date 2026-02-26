@@ -46,8 +46,8 @@ st.write("confidence level is ", confidence_level)
 print(confidence_level)
 
 # Initialize MediaPipe drawing and hand solutions
-mp_drawing = mp.solutions.drawing_utils
-mp_hands = mp.solutions.hands
+mp_drawing = mp.tasks.vision.drawing_utils
+mp_hands_connections = mp.tasks.vision.HandLandmarksConnections
 
 # Timestamp for frames
 frameTimeStamp = 0
