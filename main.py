@@ -6,6 +6,7 @@ import uuid  # UUID for generating unique identifiers
 import os  # OS for interacting with the operating system
 import time  # Time for time-related operations
 import streamlit as st  # Streamlit for creating web applications
+from pynput import keyboard  # Pynput for listening to global keyboard events
 
 # Set the title for the web page
 st.set_page_config(page_title="WaveMomentum")
@@ -109,7 +110,23 @@ recog = mp.tasks.vision.GestureRecognizer.create_from_options(
         result_callback=result
         )
     )
-while cap.isOpened():
+
+# Create a flag to stop the program
+stop_program = False
+
+def on_press(key):
+    global stop_program
+    try:
+        if key.char == 'q':
+            stop_program = True
+    except AttributeError:
+        pass
+
+# Start listening for key presses in the background
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
+while cap.isOpened() and not stop_program:
     ret, frame = cap.read()
     if not ret:
         break
@@ -132,11 +149,9 @@ while cap.isOpened():
     recog.recognize_async(mp_image, frameTimeStamp)
 
     stframe.image(image, channels="BGR", use_column_width=True)
-    
 
-    if cv2.waitKey(10) & 0xFF == ord('q'):
-        break
-
+# Stop the listener and release resources
+listener.stop()
 # Release the video capture and close all OpenCV windows
 cap.release()
 cv2.destroyAllWindows()
